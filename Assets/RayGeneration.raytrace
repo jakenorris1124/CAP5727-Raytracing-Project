@@ -4,8 +4,8 @@
 
 #pragma max_recursion_depth 1
 
-RaytracingAccelerationStructure RAS: register(t0);
-RWTexture2D<float4> RenderTarget;
+RaytracingAccelerationStructure _ras: register(t0);
+RWTexture2D<float4> _dxrTarget;
 
 float4x4 _CameraToWorld;
 float4x4 _InverseProjection;
@@ -41,9 +41,9 @@ void RaygenShader()
     Payload payload;
     payload.color = float4(0, 0, 0, 0);
     
-    TraceRay(RAS, 0, 0xFFFFFFF, 0, 1, 0, ray, payload);
+    TraceRay(_ras, 0, 0xFFFFFFF, 0, 1, 0, ray, payload);
     
-    RenderTarget[dispatchIdx.xy] = payload.color;
+    _dxrTarget[dispatchIdx.xy] = payload.color;
 }
 
 [shader("miss")]

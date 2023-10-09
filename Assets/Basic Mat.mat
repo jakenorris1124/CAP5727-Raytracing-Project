@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: New Material
+  m_Name: Basic Mat
   m_Shader: {fileID: 4800000, guid: d49186fc30b35f4488333988945088a9, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0

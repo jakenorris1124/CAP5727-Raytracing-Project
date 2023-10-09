@@ -24,7 +24,7 @@ Shader "Custom/RaytraceShaderPass"
             void HitShader(inout Payload payload : SV_RayPayload,
               AttributeData attributes : SV_IntersectionAttributes)
             {
-                payload.color = 1;
+                payload.color = float4(0,0,1,0);
             }
 
             ENDHLSL

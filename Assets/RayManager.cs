@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -9,33 +10,29 @@ public class RayManager : MonoBehaviour
 {
     private RayTracingAccelerationStructure _ras;
     private RenderTexture _dxrTarget;
-    private RayTracingShader _rayGenerationShader;
-    public Camera cam;
+    private Camera _cam;
     
-
+    public RayTracingShader rayGenerationShader;
+    
+    
     void Start()
     {
+        _cam = GetComponent<Camera>();
         InitRAS();
         InitRenderTexture();
-
-        CommandBuffer command = new CommandBuffer();
-        command.SetRayTracingTextureParam(_rayGenerationShader, "RenderTarget", _dxrTarget);
-        command.SetRayTracingShaderPass(_rayGenerationShader, "RaytracingPass");
-        command.SetRayTracingAccelerationStructure(_rayGenerationShader, "RAS", _ras);
-        
-        var inverseProjection = GL.GetGPUProjectionMatrix(cam.projectionMatrix, false).inverse;
-        
-        command.SetRayTracingMatrixParam(_rayGenerationShader, "_InverseProjection", inverseProjection);
-        command.SetRayTracingMatrixParam(_rayGenerationShader, "_CameraToWorld", cam.cameraToWorldMatrix);
-        command.SetRayTracingVectorParam(_rayGenerationShader, "_WorldSpaceCameraPos", cam.transform.position);
-        
-        command.DispatchRays(_rayGenerationShader, "RaygenShader", (uint)_dxrTarget.width, (uint)_dxrTarget.height, 1u, cam);
+        InitRayGenerationShader();
     }
 
     // Update is called once per frame
     void Update()
     {
         _ras.Build();
+    }
+    
+    private void OnRenderImage(RenderTexture source, RenderTexture destination)
+    {
+        rayGenerationShader.Dispatch("RaygenShader", _dxrTarget.width, _dxrTarget.height, 1, _cam);
+        Graphics.Blit(_dxrTarget, destination);
     }
 
     private void InitRAS()
@@ -48,6 +45,8 @@ public class RayManager : MonoBehaviour
         };
 
         _ras = new RayTracingAccelerationStructure(settings);
+        
+        _ras.Build();
     }
     private void InitRenderTexture()
     {
@@ -62,6 +61,13 @@ public class RayManager : MonoBehaviour
 
     private void InitRayGenerationShader()
     {
-        _rayGenerationShader.SetTexture("_dxrTarget", _dxrTarget);
+        rayGenerationShader.SetTexture("_dxrTarget", _dxrTarget);
+        rayGenerationShader.SetShaderPass("RaytracingPass");
+        rayGenerationShader.SetAccelerationStructure("_ras", _ras);
+        
+        var inverseProjection = GL.GetGPUProjectionMatrix(_cam.projectionMatrix, false).inverse;
+        rayGenerationShader.SetMatrix("_InverseProjection", inverseProjection);
+        rayGenerationShader.SetMatrix("_CameraToWorld", _cam.cameraToWorldMatrix);
+        rayGenerationShader.SetVector("_WorldSpaceCameraPos", _cam.transform.position);
     }
 }
