@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using UnityEngine.Serialization;
+using Random = System.Random;
 
 public class RayManager : MonoBehaviour
 {
@@ -13,6 +14,18 @@ public class RayManager : MonoBehaviour
     private Camera _cam;
     
     public RayTracingShader rayGenerationShader;
+    
+    public Color upperSkyColor = Color.blue;
+    public Color lowerSkyColor = Color.grey;
+
+    public GameObject lightPosition;
+    public Material diffuse1;
+    public Material diffuse2;
+    public Material specular;
+
+    public int sampleCount = 5;
+
+    private Random random = new Random();
     
     
     void Start()
@@ -27,6 +40,15 @@ public class RayManager : MonoBehaviour
     void Update()
     {
         _ras.Build();
+        
+        rayGenerationShader.SetMatrix("_CameraToWorld", _cam.cameraToWorldMatrix);
+        rayGenerationShader.SetVector("_WorldSpaceCameraPos", _cam.transform.position);
+        rayGenerationShader.SetVector("lightPosition", lightPosition.transform.position);
+        rayGenerationShader.SetInt("seed", random.Next());
+        
+        diffuse1.SetVector("_LightPosition", lightPosition.transform.position);
+        diffuse2.SetVector("_LightPosition", lightPosition.transform.position);
+        specular.SetVector("_CameraPosition", _cam.transform.position);
     }
     
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
@@ -69,5 +91,10 @@ public class RayManager : MonoBehaviour
         rayGenerationShader.SetMatrix("_InverseProjection", inverseProjection);
         rayGenerationShader.SetMatrix("_CameraToWorld", _cam.cameraToWorldMatrix);
         rayGenerationShader.SetVector("_WorldSpaceCameraPos", _cam.transform.position);
+        
+        rayGenerationShader.SetVector("_upperSkyColor", upperSkyColor.gamma);
+        rayGenerationShader.SetVector("_lowerSkyColor", lowerSkyColor.gamma);
+        
+        rayGenerationShader.SetInt("sampleCount", sampleCount);
     }
 }

@@ -1,19 +1,20 @@
 #include "HLSLSupport.cginc"
 #include "UnityRaytracingMeshUtils.cginc"
 #include "UnityShaderVariables.cginc"
+#include "Common.cginc"
 
-#pragma max_recursion_depth 1
+#pragma max_recursion_depth 8
 
-RaytracingAccelerationStructure _ras: register(t0);
 RWTexture2D<float4> _dxrTarget;
 
 float4x4 _CameraToWorld;
 float4x4 _InverseProjection;
 
-struct Payload
-{
-    float4 color;
-};
+float4 _lowerSkyColor;
+float4 _upperSkyColor;
+
+int seed;
+int sampleCount;
 
 
 [shader("raygeneration")]
@@ -21,6 +22,8 @@ void RaygenShader()
 {
     uint3 dispatchIdx = DispatchRaysIndex();
     uint3 dispatchDim = DispatchRaysDimensions();
+    
+    uint raySeed = initRand(dispatchIdx.x + dispatchIdx.y * dispatchDim.x, seed);
     
     float2 texcoord = (dispatchIdx.xy + float2(0.5, 0.5)) / float2(dispatchDim.x, dispatchDim.y);
     float3 viewPosition = float3(texcoord * 2.0 - float2(1.0, 1.0), 0.0);
@@ -39,15 +42,33 @@ void RaygenShader()
     ray.TMax = 10000;
     
     Payload payload;
-    payload.color = float4(0, 0, 0, 0);
+    payload.color = float4(0, 0, 0, 1);
+    payload.depth = 0;
+    payload.seed = raySeed;
+    payload.isFeeler = false;
     
-    TraceRay(_ras, 0, 0xFFFFFFF, 0, 1, 0, ray, payload);
     
-    _dxrTarget[dispatchIdx.xy] = payload.color;
+    float4 sampleTotal = float4(0,0,0,0);
+    int i;
+    for(i = 0; i < sampleCount; i++)
+    {
+        TraceRay(_ras, 0, 0xFFFFFFF, 0, 1, 0, ray, payload);
+        sampleTotal += payload.color;
+        
+        if (payload.depth == 0)
+            break;
+    }
+    
+    _dxrTarget[dispatchIdx.xy] = sampleTotal / (i + 1);
 }
 
 [shader("miss")]
 void MissShader(inout Payload payload: SV_RayPayload)
 {
-    payload.color = 0;
+    if (payload.isFeeler)
+            return;
+
+    float3 rayDir = normalize(WorldRayDirection());
+    payload.color = lerp(_lowerSkyColor, _upperSkyColor, rayDir.y * 0.5 + 0.5);
+    //payload.color = float4(0,0,0,0);
 }
