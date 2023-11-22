@@ -3,7 +3,6 @@ Shader "Custom/Diffuse"
     Properties
 	{
 		_Color ("Color", Color) = (1, 1, 1, 1)
-		_LightPosition ("Light Position", Vector) = (0, 0, 0)
 	}
     SubShader
     {
@@ -12,7 +11,7 @@ Shader "Custom/Diffuse"
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			#include "SimpleLit.cginc"
+			#include "Assets/Shaders/Standard Shaders/SimpleLit.cginc"
 			ENDCG
 		}
         Pass
@@ -22,10 +21,11 @@ Shader "Custom/Diffuse"
             HLSLPROGRAM
 
             #pragma raytracing HitShader
-            #include "Common.cginc"
+            #include "Assets/Shaders/Standard Shaders/Common.cginc"
 
             float4 _Color;
             float3 _LightPosition;
+            int indirectLighting;
 
             [shader("closesthit")]
             void HitShader(inout Payload payload : SV_RayPayload,
@@ -49,19 +49,22 @@ Shader "Custom/Diffuse"
 
             	float3 randomDirection = float3(nextRand(payload.seed), nextRand(payload.seed), nextRand(payload.seed)) * 2 -1;
             	float3 scatterDirection = normalize(worldNormal + randomDirection);
-
+            	Payload scatter = DispatchRay(worldPosition, scatterDirection, payload);
+            	
             	// Calculate light
             	float3 lightDirection = normalize(_LightPosition - worldPosition);
 
-            	float angle = dot(lightDirection, worldNormal) / (GetMagnitude(lightDirection) * GetMagnitude(worldNormal));
-            	float lightIntensity = 0.7;
-				float diffuseCoefficient = 0.8;
-				float radiantEnergy = lightIntensity * diffuseCoefficient * angle;
+	            const float radiantEnergy = GetRadiantEnergy(lightDirection, worldNormal, 0.7, 0.8);
+	            const float4 directLightContribution = GetDirectLightContribution(worldPosition, lightDirection, 1, payload.seed);
+            	const float4 emittedLight = saturate(directLightContribution * radiantEnergy);
 
-            	float4 directLightContribution = GetDirectLightContribution(worldPosition, lightDirection, 1, payload.seed);
+            	float4 test = emittedLight;
+	            if (indirectLighting == 1)
+	            {
+		            test += scatter.color;
+	            }
             	
-            	Payload scatter = DispatchRay(worldPosition, scatterDirection, payload);
-            	payload.color =  _Color * (directLightContribution * radiantEnergy);
+            	payload.color =  _Color * (test);
             	payload.depth = scatter.depth;
 		            
             	//payload.color = (_Color + (directLightContribution * radiantEnergy)) * scatter.color;

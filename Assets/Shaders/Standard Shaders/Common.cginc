@@ -190,7 +190,10 @@ float4 GetDirectLightContribution(float3 worldPosition, float3 lightDirection, i
 
 		TraceRay(_ras, 0, 0xFFFFFFF, 0, 1, 0, feelerRay, feeler);
 
-		directLightContribution += feeler.color;
+		if (feeler.isFeeler)
+		{
+			directLightContribution += feeler.color;
+		}
 	}
 
 	directLightContribution /= samples;
@@ -206,15 +209,22 @@ Payload DispatchRay(float3 worldPosition, float3 scatterDirection, Payload previ
 	ray.TMin = 0.001;
 	ray.TMax = 100;
                 
-	Payload scatter;
-	scatter.color = float4(0, 0, 0, 0);
-	scatter.depth = previousPayload.depth + 1;
-	scatter.seed = previousPayload.seed;
-	scatter.isFeeler = false;
+	Payload payload;
+	payload.color = float4(0, 0, 0, 0);
+	payload.depth = previousPayload.depth + 1;
+	payload.seed = previousPayload.seed;
+	payload.isFeeler = false;
 
-	TraceRay(_ras, 0, 0xFFFFFFF, 0, 1, 0, ray, scatter);
+	TraceRay(_ras, 0, 0xFFFFFFF, 0, 1, 0, ray, payload);
 
-	return scatter;
+	return payload;
+}
+
+
+float GetRadiantEnergy(float3 lightDirection, float3 worldNormal, float lightIntensity, float diffuseCoefficient)
+{
+	float angle = dot(lightDirection, worldNormal) / (GetMagnitude(lightDirection) * GetMagnitude(worldNormal));
+	return lightIntensity * diffuseCoefficient * angle;
 }
 
 #endif // COMMON_CGING

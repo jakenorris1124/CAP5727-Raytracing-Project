@@ -21,11 +21,15 @@ public class RayManager : MonoBehaviour
     public GameObject lightPosition;
     public Material diffuse1;
     public Material diffuse2;
+    public Material diffuse3;
     public Material specular;
+    public Material glass;
 
     public int sampleCount = 5;
 
     private Random random = new Random();
+
+    private bool indirect = true;
     
     
     void Start()
@@ -34,6 +38,10 @@ public class RayManager : MonoBehaviour
         InitRAS();
         InitRenderTexture();
         InitRayGenerationShader();
+        
+        diffuse1.SetInteger("indirectLighting", 1);
+        diffuse2.SetInteger("indirectLighting", 1);
+        diffuse3.SetInteger("indirectLighting", 1);
     }
 
     // Update is called once per frame
@@ -48,7 +56,20 @@ public class RayManager : MonoBehaviour
         
         diffuse1.SetVector("_LightPosition", lightPosition.transform.position);
         diffuse2.SetVector("_LightPosition", lightPosition.transform.position);
+        if (!diffuse3.Equals(null))
+            diffuse3.SetVector("_LightPosition", lightPosition.transform.position);
         specular.SetVector("_CameraPosition", _cam.transform.position);
+        specular.SetVector("_LightPosition", lightPosition.transform.position);
+        //glass.SetVector("_CameraPosition", _cam.transform.position);
+        //glass.SetVector("_LightPosition", lightPosition.transform.position);
+
+        if (Input.GetKeyDown(KeyCode.I))
+        {
+            indirect = !indirect;
+            diffuse1.SetInteger("indirectLighting", indirect ? 1 : 0);
+            diffuse2.SetInteger("indirectLighting", indirect ? 1 : 0);
+            diffuse3.SetInteger("indirectLighting", indirect ? 1 : 0);
+        }
     }
     
     private void OnRenderImage(RenderTexture source, RenderTexture destination)

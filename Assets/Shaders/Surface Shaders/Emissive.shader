@@ -12,7 +12,7 @@ Shader "Custom/Emissive"
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			#include "SimpleLit.cginc"
+			#include "Assets/Shaders/Standard Shaders/SimpleLit.cginc"
 			ENDCG
 		}
         Pass
@@ -22,7 +22,7 @@ Shader "Custom/Emissive"
             HLSLPROGRAM
 
             #pragma raytracing HitShader
-            #include "Common.cginc"
+            #include "Assets/Shaders/Standard Shaders/Common.cginc"
 
             float4 _Color;
             float _Brightness;
