@@ -10,10 +10,13 @@ using Random = System.Random;
 public class RayManager : MonoBehaviour
 {
     private RayTracingAccelerationStructure _ras;
-    private RenderTexture _dxrTarget;
+    private RenderTexture _raytracingTarget;
+    private RenderTexture _history;
+    private RenderTexture _denoised;
     private Camera _cam;
     
     public RayTracingShader rayGenerationShader;
+    public ComputeShader denoise;
     
     public Color upperSkyColor = Color.blue;
     public Color lowerSkyColor = Color.grey;
@@ -25,19 +28,28 @@ public class RayManager : MonoBehaviour
     public Material specular;
     public Material glass;
 
+    public Material[] materials;
+
     public int sampleCount = 5;
 
     private Random random = new Random();
 
     private bool indirect = true;
+    private bool denoiseOn = true;
     
     
+    private static readonly int Noisy = Shader.PropertyToID("Noisy");
+    private static readonly int Denoised = Shader.PropertyToID("Denoised");
+    private static readonly int History = Shader.PropertyToID("History");
+
     void Start()
     {
         _cam = GetComponent<Camera>();
         InitRAS();
-        InitRenderTexture();
+        InitRenderTextures();
         InitRayGenerationShader();
+        InitDenoiseShader();
+        
         
         diffuse1.SetInteger("indirectLighting", 1);
         diffuse2.SetInteger("indirectLighting", 1);
@@ -53,15 +65,12 @@ public class RayManager : MonoBehaviour
         rayGenerationShader.SetVector("_WorldSpaceCameraPos", _cam.transform.position);
         rayGenerationShader.SetVector("lightPosition", lightPosition.transform.position);
         rayGenerationShader.SetInt("seed", random.Next());
-        
-        diffuse1.SetVector("_LightPosition", lightPosition.transform.position);
-        diffuse2.SetVector("_LightPosition", lightPosition.transform.position);
-        if (!diffuse3.Equals(null))
-            diffuse3.SetVector("_LightPosition", lightPosition.transform.position);
-        specular.SetVector("_CameraPosition", _cam.transform.position);
-        specular.SetVector("_LightPosition", lightPosition.transform.position);
-        //glass.SetVector("_CameraPosition", _cam.transform.position);
-        //glass.SetVector("_LightPosition", lightPosition.transform.position);
+
+        foreach (Material mat in materials)
+        {
+            mat.SetVector("_LightPosition", lightPosition.transform.position);
+            mat.SetVector("_CameraPosition", _cam.transform.position);
+        }
 
         if (Input.GetKeyDown(KeyCode.I))
         {
@@ -70,12 +79,28 @@ public class RayManager : MonoBehaviour
             diffuse2.SetInteger("indirectLighting", indirect ? 1 : 0);
             diffuse3.SetInteger("indirectLighting", indirect ? 1 : 0);
         }
+
+        if (Input.GetKeyDown(KeyCode.N))
+        {
+            denoiseOn = !denoiseOn;
+        }
     }
     
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
-        rayGenerationShader.Dispatch("RaygenShader", _dxrTarget.width, _dxrTarget.height, 1, _cam);
-        Graphics.Blit(_dxrTarget, destination);
+        rayGenerationShader.Dispatch("RaygenShader", _raytracingTarget.width, _raytracingTarget.height, 1, _cam);
+
+        if (denoiseOn)
+        {
+            denoise.Dispatch(0, _raytracingTarget.width / 8, _raytracingTarget.width / 8, 1);
+            Graphics.Blit(_denoised, destination);
+            Graphics.CopyTexture(_denoised, _history);
+        }
+        else
+        {
+            Graphics.Blit(_raytracingTarget, destination);
+            Graphics.CopyTexture(_raytracingTarget, _history);
+        }
     }
 
     private void InitRAS()
@@ -91,20 +116,30 @@ public class RayManager : MonoBehaviour
         
         _ras.Build();
     }
-    private void InitRenderTexture()
+    private void InitRenderTextures()
     {
-        if (_dxrTarget != null)
+        if (_raytracingTarget != null)
             return;
 
-        _dxrTarget = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat,
+        _raytracingTarget = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat,
             RenderTextureReadWrite.Linear);
-        _dxrTarget.enableRandomWrite = true;
-        _dxrTarget.Create();
+        _raytracingTarget.enableRandomWrite = true;
+        _raytracingTarget.Create();
+        
+        _denoised = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat,
+            RenderTextureReadWrite.Linear);
+        _denoised.enableRandomWrite = true;
+        _denoised.Create();
+        
+        _history = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat,
+            RenderTextureReadWrite.Linear);
+        _history.enableRandomWrite = true;
+        _history.Create();
     }
 
     private void InitRayGenerationShader()
     {
-        rayGenerationShader.SetTexture("_dxrTarget", _dxrTarget);
+        rayGenerationShader.SetTexture("_dxrTarget", _raytracingTarget);
         rayGenerationShader.SetShaderPass("RaytracingPass");
         rayGenerationShader.SetAccelerationStructure("_ras", _ras);
         
@@ -117,5 +152,12 @@ public class RayManager : MonoBehaviour
         rayGenerationShader.SetVector("_lowerSkyColor", lowerSkyColor.gamma);
         
         rayGenerationShader.SetInt("sampleCount", sampleCount);
+    }
+
+    private void InitDenoiseShader()
+    {
+        denoise.SetTexture(0, Noisy, _raytracingTarget);
+        denoise.SetTexture(0, History, _history);
+        denoise.SetTexture(0, Denoised, _denoised);
     }
 }

@@ -7,6 +7,7 @@ Shader "Custom/Emissive"
 	}
     SubShader
     {
+    	Tags {"RenderType"="Opaque"}
         Pass
 		{
 			CGPROGRAM
@@ -30,7 +31,7 @@ Shader "Custom/Emissive"
             [shader("closesthit")]
             void HitShader(inout Payload payload : SV_RayPayload, AttributeData attributes : SV_IntersectionAttributes)
             {
-                if (payload.depth + 1 == gMaxDepth || payload.isFeeler)
+                if (payload.depth + 1 == gMaxDepth || payload.flag == LIGHT_FEELER_FLAG)
                 {
                 	payload.color = _Color * _Brightness;
                     return;
@@ -48,20 +49,9 @@ Shader "Custom/Emissive"
                 float3 reflectDirection = normalize(worldNormal);
             	
                 float3 worldPosition = rayOrigin + RayTCurrent() * rayDirection;
-
-                RayDesc ray;
-                ray.Origin = worldPosition; 
-                ray.Direction = reflectDirection; 
-                ray.TMin = 0.001;
-                ray.TMax = 100;
-                
-                Payload scatter;
-                scatter.color = float4(0, 0, 0, 0);
-                scatter.depth = payload.depth + 1;
-            	scatter.seed = payload.seed;
-            	scatter.isFeeler = false;
-                
-                TraceRay(_ras, 0, 0xFFFFFFF, 0, 1, 0, ray, scatter);
+            	
+            	Payload scatter = DispatchRay(worldPosition, reflectDirection, payload);
+            	
                 
                 payload.color = _Color * _Brightness;
             	payload.depth = scatter.depth;

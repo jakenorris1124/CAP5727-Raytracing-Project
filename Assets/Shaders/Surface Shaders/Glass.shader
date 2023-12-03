@@ -3,10 +3,11 @@ Shader "Custom/Glass"
     Properties
 	{
 		_Color ("Color", Color) = (1, 1, 1, 1)
-		_Roughness ("Roughness", Range(0,200)) = 0.3
+		_Shininess ("Shininess", Range(0, 100)) = 50
 	}
     SubShader
     {
+    	Tags { "RenderType"="Transparent" }
         Pass
 		{
 			CGPROGRAM
@@ -22,20 +23,34 @@ Shader "Custom/Glass"
             HLSLPROGRAM
 
             #pragma raytracing HitShader
+            #pragma raytracing AnyHit
             #include "Assets/Shaders/Standard Shaders/Common.cginc"
 
             float4 _Color;
             float _Roughness;
+            float _Shininess;
             float3 _LightPosition;
             float3 _CameraPosition;
+
+            [shader("anyhit")]
+            void AnyHit(inout Payload payload : SV_RayPayload,
+              AttributeData attributes : SV_IntersectionAttributes)
+            {
+	            if (payload.flag != CAMERA_RAY_FLAG)
+	            {
+		            IgnoreHit();
+	            }
+            	
+            	AcceptHitAndEndSearch();
+            }
 
             [shader("closesthit")]
             void HitShader(inout Payload payload : SV_RayPayload,
               AttributeData attributes : SV_IntersectionAttributes)
             {
-                if (payload.depth + 1 == gMaxDepth || payload.isFeeler)
+                if (payload.depth + 1 == gMaxDepth || payload.flag == LIGHT_FEELER_FLAG)
                 {
-                	payload.isFeeler = false;
+                	payload.flag = LIGHT_FEELER_FIZZLED_FLAG;
                     return;
                 }
                 
@@ -50,31 +65,22 @@ Shader "Custom/Glass"
 
             	// Calculate reflection
             	float3 reflectDirection = reflect(rayDirection, worldNormal);
-            	float3 randomDirection = float3(nextRand(payload.seed), nextRand(payload.seed), nextRand(payload.seed)) * 2 -1;
-            	reflectDirection = normalize(reflectDirection + (_Roughness * randomDirection));
+            	reflectDirection = normalize(reflectDirection + (_Roughness * GetRandomDirection(payload.seed)));
                 float3 worldPosition = rayOrigin + RayTCurrent() * rayDirection;
             	Payload reflected = DispatchRay(worldPosition, reflectDirection, payload);
 
             	// Calculate passthrough
-            	randomDirection = float3(nextRand(payload.seed), nextRand(payload.seed), nextRand(payload.seed)) * 2 -1;
-            	Payload passthrough = DispatchRay(worldPosition, rayDirection, payload);
+            	Payload passthrough = DispatchRay(worldPosition, rayDirection, payload, PASSTHROUGH_FLAG);
             	
             	// Calculate light
             	float3 lightDirection = normalize(_LightPosition - worldPosition);
-            	float3 specReflect = reflect(lightDirection, worldNormal);
-            	float3 eyeDirection = normalize(_CameraPosition - worldPosition);
-
-            	float4 directLightContribution = GetDirectLightContribution(worldPosition, lightDirection, 1, payload.seed);
-
-            	float angle = dot(eyeDirection, specReflect);
-            	float lightIntensity = 0.7;
-				float specularCoefficient = 0.8;
-				float specular = lightIntensity * specularCoefficient * angle;
+            	float4 directLightContribution = GetDirectLightContribution(worldPosition, lightDirection, 1, payload);
+            	float specular = GetSpecularReflection(worldPosition, worldNormal, lightDirection, _CameraPosition, _Shininess);
             	
-            	//payload.color = (_Color + (directLightContribution * specular)) * scatter.color;
-            	
-                payload.color =  passthrough.color * reflected.color + (directLightContribution * specular);
-            	payload.depth = reflected.depth;
+            	payload.color = specular + saturate((reflected.color * 0.3) + passthrough.color);
+
+            	//payload.color =  (specular * reflected.color) * passthrough.color;
+            	payload.depth = passthrough.depth;
             }
 
             ENDHLSL

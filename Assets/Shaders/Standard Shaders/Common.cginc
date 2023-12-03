@@ -1,4 +1,6 @@
-// Acquired from https://github.com/SlightlyMad/SimpleDxrPathTracer
+// Start: Acquired from https://github.com/SlightlyMad/SimpleDxrPathTracer
+// Upgrade NOTE: excluded shader from DX11, OpenGL ES 2.0 because it uses unsized arrays
+#pragma exclude_renderers d3d11 gles
 
 #ifndef COMMON_CGING
 #define COMMON_CGING
@@ -12,6 +14,13 @@ RaytracingAccelerationStructure  _ras;
 
 #define RAYTRACING_OPAQUE_FLAG      0x0f
 #define RAYTRACING_TRANSPARENT_FLAG 0xf0
+
+#define LIGHT_FEELER_FLAG 0x00
+#define LIGHT_FEELER_FIZZLED_FLAG 0x01
+#define LIGHT_FEELER_GLASS_FLAG 0x02
+#define PASSTHROUGH_FLAG 0x03
+#define INDIRECT_LIGHT_FLAG 0x04
+#define CAMERA_RAY_FLAG 0x05
 
 enum reflect_direction
 {
@@ -68,8 +77,8 @@ struct Payload
 	uint seed;
 	// Recursion depth
 	uint depth;
-	// Indicates if ray is a feeler
-	bool isFeeler;
+	// Indicates the type of ray
+	half flag;
 };
 
 
@@ -152,6 +161,8 @@ void GetCurrentIntersectionVertex(AttributeData attributeData, out IntersectionV
 	outVertex.texCoord3Area = abs((v1.texCoord3.x - v0.texCoord3.x) * (v2.texCoord3.y - v0.texCoord3.y) - (v2.texCoord3.x - v0.texCoord3.x) * (v1.texCoord3.y - v0.texCoord3.y));
 }
 
+// End: acquired from https://github.com/SlightlyMad/SimpleDxrPathTracer
+
 float GetMagnitude(float3 input)
 {
 	float sum = pow(input.x, 2) + pow(input.y, 2) + pow(input.z, 2);
@@ -168,29 +179,49 @@ float GetDistance(float3 start, float3 end)
 	return sqrt(xDifferenceSquared + yDifferenceSquared + zDifferenceSquared);
 }
 
-float4 GetDirectLightContribution(float3 worldPosition, float3 lightDirection, int samples, uint seed)
+float3 GetRandomDirection(inout uint seed)
+{
+	return  float3(nextRand(seed), nextRand(seed), nextRand(seed)) * 2 - 1;
+}
+
+Payload DispatchRay(float3 worldPosition, float3 scatterDirection, Payload previous, int flag = INDIRECT_LIGHT_FLAG)
+{
+	RayDesc ray;
+	ray.Origin = worldPosition; 
+	ray.Direction = scatterDirection; 
+	ray.TMin = 0.001;
+	ray.TMax = 100;
+                
+	Payload payload;
+	payload.color = float4(0, 0, 0, 0);
+	payload.depth = previous.depth + 1;
+	payload.seed = previous.seed;
+	payload.flag = flag;
+
+	if (flag == PASSTHROUGH_FLAG && previous.flag == CAMERA_RAY_FLAG)
+	{
+		payload.depth = 0;
+	}
+
+	if (payload.depth + 1 < gMaxDepth)
+	{
+		TraceRay(_ras, 0, 0xFFFFFFF, 0, 1, 0, ray, payload);
+	}
+	
+	return payload;
+}
+
+float4 GetDirectLightContribution(float3 worldPosition, float3 lightDirection, int samples, Payload previous)
 {
 	float4 directLightContribution = float4(0,0,0,0);
 	
 	for (int i = 0; i < samples; i++)
 	{
-		float3 randomDirection = float3(nextRand(seed), nextRand(seed), nextRand(seed)) * 2 - 1;
-		
-		RayDesc feelerRay;
-		feelerRay.Origin = worldPosition;
-		feelerRay.Direction = normalize(lightDirection + (randomDirection * 0.05));
-		feelerRay.TMin = 0.001;
-		feelerRay.TMax = 100;
+		float3 feelerDirection = normalize(lightDirection + (GetRandomDirection(previous.seed) * 0.05));
 
-		Payload feeler;
-		feeler.color = float4(0, 0, 0, 0);
-		feeler.depth = 0;
-		feeler.seed = seed;
-		feeler.isFeeler = true;
+		Payload feeler = DispatchRay(worldPosition, feelerDirection, previous, LIGHT_FEELER_FLAG);
 
-		TraceRay(_ras, 0, 0xFFFFFFF, 0, 1, 0, feelerRay, feeler);
-
-		if (feeler.isFeeler)
+		if (feeler.flag == LIGHT_FEELER_FLAG)
 		{
 			directLightContribution += feeler.color;
 		}
@@ -201,23 +232,13 @@ float4 GetDirectLightContribution(float3 worldPosition, float3 lightDirection, i
 	return directLightContribution;
 }
 
-Payload DispatchRay(float3 worldPosition, float3 scatterDirection, Payload previousPayload)
+float GetSpecularReflection(float3 worldPosition, float3 worldNormal, float3 lightDirection, float3 cameraPosition, float shininess)
 {
-	RayDesc ray;
-	ray.Origin = worldPosition; 
-	ray.Direction = scatterDirection; 
-	ray.TMin = 0.001;
-	ray.TMax = 100;
-                
-	Payload payload;
-	payload.color = float4(0, 0, 0, 0);
-	payload.depth = previousPayload.depth + 1;
-	payload.seed = previousPayload.seed;
-	payload.isFeeler = false;
+	float3 specReflect = normalize(reflect(lightDirection, worldNormal));
+	float3 eyeDirection = normalize(worldPosition - cameraPosition);
 
-	TraceRay(_ras, 0, 0xFFFFFFF, 0, 1, 0, ray, payload);
-
-	return payload;
+	float angle = saturate(dot(specReflect, eyeDirection));
+	return pow(angle, (100 - shininess));
 }
 
 

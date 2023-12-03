@@ -6,6 +6,7 @@ Shader "Custom/Diffuse"
 	}
     SubShader
     {
+    	Tags { "RenderType"="Opaque"}
         Pass
 		{
 			CGPROGRAM
@@ -31,13 +32,13 @@ Shader "Custom/Diffuse"
             void HitShader(inout Payload payload : SV_RayPayload,
               AttributeData attributes : SV_IntersectionAttributes)
             {
-            	if (payload.depth + 1 == gMaxDepth || payload.isFeeler)
+            	if (payload.depth + 1 == gMaxDepth || payload.flag == LIGHT_FEELER_FLAG)
                 {
-                	payload.isFeeler = false;
+                	payload.flag = LIGHT_FEELER_FIZZLED_FLAG;
                     return;
                 }
             	
-                IntersectionVertex current;
+            	IntersectionVertex current;
                 GetCurrentIntersectionVertex(attributes, current);
 
                 float3x3 objectToWorld = (float3x3) ObjectToWorld3x4();
@@ -46,28 +47,24 @@ Shader "Custom/Diffuse"
             	float3 rayOrigin = WorldRayOrigin();
                 float3 rayDirection = WorldRayDirection();
             	float3 worldPosition = rayOrigin + RayTCurrent() * rayDirection;
-
-            	float3 randomDirection = float3(nextRand(payload.seed), nextRand(payload.seed), nextRand(payload.seed)) * 2 -1;
-            	float3 scatterDirection = normalize(worldNormal + randomDirection);
+            	
+            	float3 scatterDirection = normalize(worldNormal + GetRandomDirection(payload.seed));
             	Payload scatter = DispatchRay(worldPosition, scatterDirection, payload);
             	
             	// Calculate light
             	float3 lightDirection = normalize(_LightPosition - worldPosition);
 
 	            const float radiantEnergy = GetRadiantEnergy(lightDirection, worldNormal, 0.7, 0.8);
-	            const float4 directLightContribution = GetDirectLightContribution(worldPosition, lightDirection, 1, payload.seed);
-            	const float4 emittedLight = saturate(directLightContribution * radiantEnergy);
-
-            	float4 test = emittedLight;
+	            const float4 directLightContribution = GetDirectLightContribution(worldPosition, lightDirection, 1, payload);
+            	float4 emittedLight = saturate(directLightContribution * radiantEnergy);
+            	
 	            if (indirectLighting == 1)
 	            {
-		            test += scatter.color;
+		            emittedLight += scatter.color;
 	            }
             	
-            	payload.color =  _Color * (test);
+            	payload.color =  _Color * (emittedLight);
             	payload.depth = scatter.depth;
-		            
-            	//payload.color = (_Color + (directLightContribution * radiantEnergy)) * scatter.color;
             }
 
             ENDHLSL

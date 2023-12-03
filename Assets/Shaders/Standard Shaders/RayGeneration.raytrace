@@ -45,7 +45,7 @@ void RaygenShader()
     payload.color = float4(0, 0, 0, 1);
     payload.depth = 0;
     payload.seed = raySeed;
-    payload.isFeeler = false;
+    payload.flag = CAMERA_RAY_FLAG;
     
     
     float4 sampleTotal = float4(0,0,0,0);
@@ -65,10 +65,9 @@ void RaygenShader()
 [shader("miss")]
 void MissShader(inout Payload payload: SV_RayPayload)
 {
-    if (payload.isFeeler)
-            return;
+    if (payload.flag == LIGHT_FEELER_FLAG)
+        return;
 
     float3 rayDir = normalize(WorldRayDirection());
     payload.color = lerp(_lowerSkyColor, _upperSkyColor, rayDir.y * 0.5 + 0.5);
-    //payload.color = float4(0,0,0,0);
 }
