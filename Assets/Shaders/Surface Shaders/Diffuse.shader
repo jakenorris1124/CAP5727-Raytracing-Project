@@ -1,4 +1,4 @@
-Shader "Custom/Diffuse"
+Shader "Raytracing/Diffuse"
 {
     Properties
 	{

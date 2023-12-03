@@ -1,4 +1,4 @@
-Shader "Custom/Glass"
+Shader "Raytracing/Glass"
 {
     Properties
 	{

@@ -1,4 +1,4 @@
-Shader "Custom/Emissive"
+Shader "Raytracing/Emissive"
 {
     Properties
 	{

@@ -1,4 +1,4 @@
-Shader "Custom/Specular"
+Shader "Raytracing/Specular"
 {
     Properties
 	{
