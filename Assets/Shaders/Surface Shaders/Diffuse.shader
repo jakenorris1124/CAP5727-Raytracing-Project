@@ -26,13 +26,15 @@ Shader "Raytracing/Diffuse"
 
             float4 _Color;
             float3 _LightPosition;
+            float3 _SunPosition;
+            int hasSun;
             int indirectLighting;
 
             [shader("closesthit")]
             void HitShader(inout Payload payload : SV_RayPayload,
               AttributeData attributes : SV_IntersectionAttributes)
             {
-            	if (payload.depth + 1 == gMaxDepth || payload.flag == LIGHT_FEELER_FLAG)
+            	if (payload.depth + 1 == gMaxDepth || payload.flag == LIGHT_FEELER_FLAG || payload.flag == SUN_FEELER)
                 {
                 	payload.flag = LIGHT_FEELER_FIZZLED_FLAG;
                     return;
@@ -53,9 +55,22 @@ Shader "Raytracing/Diffuse"
             	
             	// Calculate light
             	float3 lightDirection = normalize(_LightPosition - worldPosition);
+            	
+            	float3 sunDirection;
+	            if (hasSun == 1)
+	            {
+		            sunDirection = normalize(_SunPosition - worldPosition);
+            		sunDirection = normalize(sunDirection + GetRandomDirection(payload.seed) * 0.005);
+	            }
 
 	            const float radiantEnergy = GetRadiantEnergy(lightDirection, worldNormal, 0.7, 0.8);
-	            const float4 directLightContribution = GetDirectLightContribution(worldPosition, lightDirection, 1, payload);
+	            float4 directLightContribution = GetDirectLightContribution(worldPosition, lightDirection, 1, payload);
+            	
+	            if (hasSun == 1)
+	            {
+		            directLightContribution += DispatchRay(worldPosition, sunDirection, payload, SUN_FEELER).color;
+	            }
+            	
             	float4 emittedLight = saturate(directLightContribution * radiantEnergy);
             	
 	            if (indirectLighting == 1)

@@ -36,7 +36,7 @@ Shader "Raytracing/Specular"
             void HitShader(inout Payload payload : SV_RayPayload,
               AttributeData attributes : SV_IntersectionAttributes)
             {
-               if (payload.depth + 1 == gMaxDepth || payload.flag == LIGHT_FEELER_FLAG)
+               if (payload.depth + 1 == gMaxDepth || payload.flag == LIGHT_FEELER_FLAG || payload.flag == SUN_FEELER)
                {
 	               payload.flag = LIGHT_FEELER_FIZZLED_FLAG;
                		return;

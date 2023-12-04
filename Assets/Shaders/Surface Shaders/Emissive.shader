@@ -36,6 +36,11 @@ Shader "Raytracing/Emissive"
                 	payload.color = _Color * _Brightness;
                     return;
                 }
+
+                if (payload.flag == SUN_FEELER)
+                {
+	                return;
+                }
                 
                 IntersectionVertex current;
                 GetCurrentIntersectionVertex(attributes, current);

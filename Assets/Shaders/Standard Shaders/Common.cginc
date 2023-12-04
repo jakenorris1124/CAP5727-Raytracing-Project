@@ -16,9 +16,10 @@ RaytracingAccelerationStructure  _ras;
 #define LIGHT_FEELER_FLAG 0x00
 #define LIGHT_FEELER_FIZZLED_FLAG 0x01
 #define LIGHT_FEELER_GLASS_FLAG 0x02
-#define PASSTHROUGH_FLAG 0x03
-#define INDIRECT_LIGHT_FLAG 0x04
-#define CAMERA_RAY_FLAG 0x05
+#define SUN_FEELER 0x03
+#define PASSTHROUGH_FLAG 0x04
+#define INDIRECT_LIGHT_FLAG 0x05
+#define CAMERA_RAY_FLAG 0x06
 
 enum reflect_direction
 {

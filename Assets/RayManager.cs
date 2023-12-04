@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -22,6 +23,8 @@ public class RayManager : MonoBehaviour
     public Color lowerSkyColor = Color.grey;
 
     public GameObject lightPosition;
+    public GameObject sunPosition;
+    public bool hasSun = false;
     public Material diffuse1;
     public Material diffuse2;
     public Material diffuse3;
@@ -69,7 +72,9 @@ public class RayManager : MonoBehaviour
         foreach (Material mat in materials)
         {
             mat.SetVector("_LightPosition", lightPosition.transform.position);
+            mat.SetVector("_SunPosition", sunPosition.transform.position);
             mat.SetVector("_CameraPosition", _cam.transform.position);
+            mat.SetInt("hasSun", hasSun ? 1 : 0);
         }
 
         if (Input.GetKeyDown(KeyCode.I))
