@@ -21,7 +21,7 @@ public class RayManager : MonoBehaviour
     public Color upperSkyColor = Color.blue;
     public Color lowerSkyColor = Color.grey;
 
-    public GameObject lightPosition;
+    public GameObject[] lights;
     public Material diffuse1;
     public Material diffuse2;
     public Material diffuse3;
@@ -63,12 +63,19 @@ public class RayManager : MonoBehaviour
         
         rayGenerationShader.SetMatrix("_CameraToWorld", _cam.cameraToWorldMatrix);
         rayGenerationShader.SetVector("_WorldSpaceCameraPos", _cam.transform.position);
-        rayGenerationShader.SetVector("lightPosition", lightPosition.transform.position);
         rayGenerationShader.SetInt("seed", random.Next());
 
+
+        Vector4[] lightPositions = new Vector4[lights.Length];
+        for (int i = 0; i < lights.Length; i++)
+        {
+            lightPositions[i] = lights[i].transform.position;
+        }
+        
         foreach (Material mat in materials)
         {
-            mat.SetVector("_LightPosition", lightPosition.transform.position);
+            mat.SetVectorArray("_LightPositions", lightPositions);
+            mat.SetInteger("numLights", lightPositions.Length);
             mat.SetVector("_CameraPosition", _cam.transform.position);
         }
 

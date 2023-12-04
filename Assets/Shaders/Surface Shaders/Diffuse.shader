@@ -25,7 +25,8 @@ Shader "Raytracing/Diffuse"
             #include "Assets/Shaders/Standard Shaders/Common.cginc"
 
             float4 _Color;
-            float3 _LightPosition;
+            float3 _LightPositions[20];
+            int numLights;
             int indirectLighting;
 
             [shader("closesthit")]
@@ -52,11 +53,15 @@ Shader "Raytracing/Diffuse"
             	Payload scatter = DispatchRay(worldPosition, scatterDirection, payload);
             	
             	// Calculate light
-            	float3 lightDirection = normalize(_LightPosition - worldPosition);
+            	float4 emittedLight = float4(0, 0, 0, 0);
+            	for (int i = 0; i < numLights; i++)
+            	{
+            		float3 lightDirection = normalize(_LightPositions[i] - worldPosition);
 
-	            const float radiantEnergy = GetRadiantEnergy(lightDirection, worldNormal, 0.7, 0.8);
-	            const float4 directLightContribution = GetDirectLightContribution(worldPosition, lightDirection, 1, payload);
-            	float4 emittedLight = saturate(directLightContribution * radiantEnergy);
+            		const float radiantEnergy = GetRadiantEnergy(lightDirection, worldNormal, 0.7, 0.8);
+            		const float4 directLightContribution = GetDirectLightContribution(worldPosition, lightDirection, 1, payload);
+            		emittedLight += saturate(directLightContribution * radiantEnergy);
+            	}
             	
 	            if (indirectLighting == 1)
 	            {

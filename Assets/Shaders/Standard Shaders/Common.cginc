@@ -209,6 +209,25 @@ Payload DispatchRay(float3 worldPosition, float3 scatterDirection, Payload previ
 	return payload;
 }
 
+float3 GetClosestLight(float3 worldPosition, float3 lightPositions[20], int numLights)
+{
+	float closest = 9999999;
+	float closestIdx = 0;
+
+	for (int i = 0; i < numLights; i++)
+	{
+		float magnitude = GetMagnitude(lightPositions[i] - worldPosition);
+
+		if (magnitude < closest)
+		{
+			closest = magnitude;
+			closestIdx = i;
+		}
+	}
+
+	return lightPositions[closestIdx];
+}
+
 float4 GetDirectLightContribution(float3 worldPosition, float3 lightDirection, int samples, Payload previous)
 {
 	float4 directLightContribution = float4(0,0,0,0);
