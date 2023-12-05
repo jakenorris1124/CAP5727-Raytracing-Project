@@ -78,8 +78,7 @@ Shader "Raytracing/Glass"
             	float specular = GetSpecularReflection(worldPosition, worldNormal, lightDirection, _CameraPosition, _Shininess);
             	
             	payload.color = specular + saturate((reflected.color * 0.3) + passthrough.color);
-
-            	//payload.color =  (specular * reflected.color) * passthrough.color;
+            	
             	payload.depth = passthrough.depth;
             }
 

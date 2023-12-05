@@ -4,5 +4,17 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/Classic Scene.unity
+    guid: 5009dbc8025e9274a92bfacfe9d9dbd4
+  - enabled: 1
+    path: Assets/Scenes/Dark Room.unity
+    guid: cdbd7edaf63989d47b6101d93db09992
+  - enabled: 1
+    path: Assets/Scenes/Crazy Dark Room.unity
+    guid: 76847114c5b329b4badb7fc5ceab19db
+  - enabled: 1
+    path: Assets/Scenes/Move Scene.unity
+    guid: 459fcf3182053ef43ba5fa6566a3f861
   m_configObjects: {}
