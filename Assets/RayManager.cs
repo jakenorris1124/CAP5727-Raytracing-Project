@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
@@ -72,17 +73,16 @@ public class RayManager : MonoBehaviour
         foreach (Material mat in materials)
         {
             mat.SetVector("_LightPosition", lightPosition.transform.position);
-            mat.SetVector("_SunPosition", sunPosition.transform.position);
+            if (hasSun)
+                mat.SetVector("_SunPosition", sunPosition.transform.position);
             mat.SetVector("_CameraPosition", _cam.transform.position);
             mat.SetInt("hasSun", hasSun ? 1 : 0);
+            mat.SetInteger("indirectLighting", indirect ? 1 : 0);
         }
 
         if (Input.GetKeyDown(KeyCode.I))
         {
             indirect = !indirect;
-            diffuse1.SetInteger("indirectLighting", indirect ? 1 : 0);
-            diffuse2.SetInteger("indirectLighting", indirect ? 1 : 0);
-            diffuse3.SetInteger("indirectLighting", indirect ? 1 : 0);
         }
 
         if (Input.GetKeyDown(KeyCode.N))
@@ -90,12 +90,12 @@ public class RayManager : MonoBehaviour
             denoiseOn = !denoiseOn;
         }
     }
-    
+
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
         rayGenerationShader.Dispatch("RaygenShader", _raytracingTarget.width, _raytracingTarget.height, 1, _cam);
 
-        if (denoiseOn)
+        if (denoiseOn && !CameraMoving())
         {
             denoise.Dispatch(0, _raytracingTarget.width / 8, _raytracingTarget.width / 8, 1);
             Graphics.Blit(_denoised, destination);
@@ -106,6 +106,8 @@ public class RayManager : MonoBehaviour
             Graphics.Blit(_raytracingTarget, destination);
             Graphics.CopyTexture(_raytracingTarget, _history);
         }
+
+        previouisRotation = _cam.transform.localRotation;
     }
 
     private void InitRAS()
@@ -164,5 +166,20 @@ public class RayManager : MonoBehaviour
         denoise.SetTexture(0, Noisy, _raytracingTarget);
         denoise.SetTexture(0, History, _history);
         denoise.SetTexture(0, Denoised, _denoised);
+    }
+
+    private Quaternion previouisRotation;
+    private bool CameraMoving()
+    {
+        if (transform.parent == null)
+        {
+            return false;
+        }
+        Vector3 velocity = gameObject.GetComponentInParent<Rigidbody>().velocity;
+
+        bool moving = velocity.magnitude > 0.05f;
+        bool looking = !_cam.transform.localRotation.Equals(previouisRotation);
+
+        return moving || looking;
     }
 }
